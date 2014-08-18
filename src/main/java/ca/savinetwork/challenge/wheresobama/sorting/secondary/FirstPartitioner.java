@@ -3,6 +3,8 @@ package ca.savinetwork.challenge.wheresobama.sorting.secondary;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Partitioner;
 
+import ca.savinetwork.challenge.wheresobama.io.IntPair;
+
 public class FirstPartitioner extends Partitioner<IntPair, NullWritable> {
 	@Override
 	public int getPartition(IntPair key, NullWritable value, int numPartitions) {

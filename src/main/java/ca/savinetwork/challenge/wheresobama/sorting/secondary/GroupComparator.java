@@ -3,6 +3,8 @@ package ca.savinetwork.challenge.wheresobama.sorting.secondary;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 
+import ca.savinetwork.challenge.wheresobama.io.IntPair;
+
 public class GroupComparator extends WritableComparator {
 	
 	protected GroupComparator() {

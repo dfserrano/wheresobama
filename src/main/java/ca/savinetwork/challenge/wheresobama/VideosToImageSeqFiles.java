@@ -17,18 +17,21 @@ import org.openimaj.image.MBFImage;
 import org.openimaj.video.Video;
 import org.openimaj.video.xuggle.XuggleVideo;
 
+import ca.savinetwork.challenge.wheresobama.io.VideoPathAndFrame;
+import ca.savinetwork.challenge.wheresobama.util.Util;
+
 public class VideosToImageSeqFiles {
 
 	private static Logger logger = Logger
 			.getLogger(VideosToImageSeqFiles.class);
 
-	static class VideosToImageSeqFilesMapper extends
-			Mapper<NullWritable, BytesWritable, Text, BytesWritable> {
+	static class VideosToImageSeqFilesMapper
+			extends
+			Mapper<NullWritable, BytesWritable, VideoPathAndFrame, BytesWritable> {
 
 		private Text filenameKey;
 
-		private static final String letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-		private static Random random = new Random(System.currentTimeMillis());
+		private Random random = new Random(System.currentTimeMillis());
 
 		@Override
 		protected void setup(Context context) throws IOException,
@@ -42,21 +45,19 @@ public class VideosToImageSeqFiles {
 		protected void map(NullWritable key, BytesWritable value,
 				Context context) throws IOException, InterruptedException {
 			logger.info("map method called...");
-			
-			Text mapKey = new Text();
-			
+
 			String localFilePath;
 			File f;
 			do {
-				localFilePath = getRandomString(random.nextInt(5) + 5);
+				localFilePath = Util.getRandomString(random.nextInt(5) + 5);
 				f = new File(localFilePath);
-			} while(f.exists() && f.isDirectory());
-			
+			} while (f.exists() && f.isDirectory());
+
 			FileOutputStream stream = new FileOutputStream(localFilePath);
 			try {
-			    stream.write(value.getBytes());
+				stream.write(value.getBytes());
 			} finally {
-			    stream.close();
+				stream.close();
 			}
 
 			Video<MBFImage> video;
@@ -64,21 +65,11 @@ public class VideosToImageSeqFiles {
 
 			int frameNumber = 0;
 			for (MBFImage image : video) {
-				mapKey.set(filenameKey + "@" + ++frameNumber);
-				context.write(filenameKey, new BytesWritable(image.toByteImage()));
+				context.write(new VideoPathAndFrame(filenameKey.toString(),
+						frameNumber), new BytesWritable(image.toByteImage()));
 			}
-			
+
 			f.delete();
-		}
-
-		private String getRandomString(int len) {
-			StringBuilder sb = new StringBuilder(len);
-
-			for (int i = 0; i < len; i++) {
-				sb.append(letters.charAt(random.nextInt(letters.length())));
-			}
-
-			return sb.toString();
 		}
 	}
 }

@@ -13,6 +13,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import ca.savinetwork.challenge.wheresobama.VideosToImageSeqFiles.VideosToImageSeqFilesMapper;
+import ca.savinetwork.challenge.wheresobama.io.VideoPathAndFrame;
 import ca.savinetwork.challenge.wheresobama.io.WholeFileInputFormat;
 
 public class VideosToImageSeqFilesDriver extends Configured implements Tool {
@@ -26,7 +27,7 @@ public class VideosToImageSeqFilesDriver extends Configured implements Tool {
 		job.setInputFormatClass(WholeFileInputFormat.class);
 		job.setOutputFormatClass(SequenceFileOutputFormat.class);
 
-		job.setOutputKeyClass(Text.class);
+		job.setOutputKeyClass(VideoPathAndFrame.class);
 		job.setOutputValueClass(BytesWritable.class);
 
 		job.setMapperClass(VideosToImageSeqFilesMapper.class);

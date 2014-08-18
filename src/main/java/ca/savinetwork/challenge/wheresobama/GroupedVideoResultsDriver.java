@@ -8,15 +8,13 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import ca.savinetwork.challenge.wheresobama.io.IntPair;
 import ca.savinetwork.challenge.wheresobama.sorting.secondary.FirstPartitioner;
 import ca.savinetwork.challenge.wheresobama.sorting.secondary.GroupComparator;
-import ca.savinetwork.challenge.wheresobama.sorting.secondary.IntPair;
 import ca.savinetwork.challenge.wheresobama.sorting.secondary.KeyComparator;
-import ca.savinetwork.challenge.wheresobama.util.JobBuilder;
 
 public class GroupedVideoResultsDriver extends Configured implements Tool {
 	static class MaxTemperatureMapper extends
@@ -35,10 +33,9 @@ public class GroupedVideoResultsDriver extends Configured implements Tool {
 
 	@Override
 	public int run(String[] args) throws Exception {
-		Job job = JobBuilder.parseInputAndOutput(this, getConf(), args);
-		if (job == null) {
-			return -1;
-		}
+		Job job = new Job(getConf());
+		job.setJarByClass(GroupedVideoResultsDriver.class);
+		job.setJobName("GroupedVideoResults");
 
 		job.setMapperClass(MaxTemperatureMapper.class);
 		
