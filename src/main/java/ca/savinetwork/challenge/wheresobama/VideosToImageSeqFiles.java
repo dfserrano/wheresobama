@@ -1,6 +1,7 @@
 package ca.savinetwork.challenge.wheresobama;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
@@ -13,6 +14,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.log4j.Logger;
+import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.video.Video;
 import org.openimaj.video.xuggle.XuggleVideo;
@@ -51,7 +53,7 @@ public class VideosToImageSeqFiles {
 			do {
 				localFilePath = Util.getRandomString(random.nextInt(5) + 5);
 				f = new File(localFilePath);
-			} while (f.exists() && f.isDirectory());
+			} while (f.exists() || f.isDirectory());
 
 			FileOutputStream stream = new FileOutputStream(localFilePath);
 			try {
@@ -65,8 +67,22 @@ public class VideosToImageSeqFiles {
 
 			int frameNumber = 0;
 			for (MBFImage image : video) {
-				context.write(new VideoPathAndFrame(filenameKey.toString(),
-						frameNumber), new BytesWritable(image.toByteImage()));
+				String imgFilePath;
+				File imgFile;
+				do {
+					imgFilePath = Util.getRandomString(random.nextInt(5) + 5);
+					imgFile = new File(imgFilePath);
+				} while (imgFile.exists() || imgFile.isDirectory());
+				
+				ImageUtilities.write(image, "JPG", imgFile);
+				
+				byte[] bytes = new byte[(int) imgFile.length()];
+				
+				FileInputStream fis = new FileInputStream(imgFile);
+				fis.read(bytes);
+				fis.close();
+				
+				context.write(new VideoPathAndFrame(filenameKey.toString(), ++frameNumber), new BytesWritable(bytes));
 			}
 
 			f.delete();
