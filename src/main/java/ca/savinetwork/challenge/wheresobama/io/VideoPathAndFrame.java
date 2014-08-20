@@ -77,6 +77,10 @@ public class VideoPathAndFrame implements WritableComparable<VideoPathAndFrame> 
 		return frame.compareTo(ip.frame);
 	}
 	
+	public static int compare(Text a, Text b) {
+		return a.compareTo(b);
+	}
+	
 	public static int compare(IntWritable a, IntWritable b) {
 		return a.compareTo(b);
 	}

@@ -1,10 +1,8 @@
 package ca.savinetwork.challenge.wheresobama;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Random;
+import java.math.BigInteger;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
@@ -33,8 +31,6 @@ public class VideosToImageSeqFiles {
 
 		private Text filenameKey;
 
-		private Random random = new Random(System.currentTimeMillis());
-
 		@Override
 		protected void setup(Context context) throws IOException,
 				InterruptedException {
@@ -47,45 +43,55 @@ public class VideosToImageSeqFiles {
 		protected void map(NullWritable key, BytesWritable value,
 				Context context) throws IOException, InterruptedException {
 			logger.info("map method called...");
-
-			String localFilePath;
-			File f;
-			do {
-				localFilePath = Util.getRandomString(random.nextInt(5) + 5);
-				f = new File(localFilePath);
-			} while (f.exists() || f.isDirectory());
-
-			FileOutputStream stream = new FileOutputStream(localFilePath);
-			try {
-				stream.write(value.getBytes());
-			} finally {
-				stream.close();
-			}
+			
+			// store locally the video
+			String localFilePath = allocateTempFile();
+			Util.fromBytesToFile(value.getBytes(), localFilePath);
+			File videoFile = new File(localFilePath);
 
 			Video<MBFImage> video;
-			video = new XuggleVideo(new File(localFilePath));
+			video = new XuggleVideo(videoFile);
 
 			int frameNumber = 0;
 			for (MBFImage image : video) {
-				String imgFilePath;
-				File imgFile;
-				do {
-					imgFilePath = Util.getRandomString(random.nextInt(5) + 5);
-					imgFile = new File(imgFilePath);
-				} while (imgFile.exists() || imgFile.isDirectory());
-				
+				// make a local copy of the image
+				String imgFilePath = allocateTempFile();
+				File imgFile = new File(imgFilePath);
 				ImageUtilities.write(image, "JPG", imgFile);
 				
-				byte[] bytes = new byte[(int) imgFile.length()];
-				
-				FileInputStream fis = new FileInputStream(imgFile);
-				fis.read(bytes);
-				fis.close();
-				
-				context.write(new VideoPathAndFrame(filenameKey.toString(), ++frameNumber), new BytesWritable(bytes));
-			}
+				// get image into bytes
+				byte[] imgBytes = Util.fromFileToBytes(imgFilePath);
 
-			f.delete();
+				
+				context.write(new VideoPathAndFrame(filenameKey.toString(),
+						++frameNumber), new BytesWritable(imgBytes));
+
+				// delete local copy of the image
+				imgFile.delete();
+			}
+			
+			// emit a value to store number of frames of video
+			BigInteger bi = BigInteger.valueOf(frameNumber);
+			byte[] bytes = bi.toByteArray();
+			
+			context.write(new VideoPathAndFrame(filenameKey.toString(),
+			-1), new BytesWritable(bytes));
+
+			videoFile.delete();
 		}
+
+		private String allocateTempFile() {
+			File tempFile;
+			String tempFilePath;
+
+			do {
+				tempFilePath = Util.getRandomString(5, 10);
+				tempFile = new File(tempFilePath);
+			} while (tempFile.exists() || tempFile.isDirectory());
+
+			return tempFilePath;
+		}
+
+		
 	}
 }

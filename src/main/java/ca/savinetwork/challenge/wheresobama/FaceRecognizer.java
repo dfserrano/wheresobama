@@ -5,16 +5,19 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -31,18 +34,22 @@ import ca.savinetwork.challenge.wheresobama.io.VideoPathAndFrame;
 public class FaceRecognizer {
 
 	private static Logger logger = Logger.getLogger(FaceRecognizer.class);
-	private static String DELIMITER = "@";
 
-	// public static class FaceRecognizerMapper extends
-	// Mapper<VideoPathAndFrame, BytesWritable, Text, Text> {
 	public static class FaceRecognizerMapper extends
 			Mapper<VideoPathAndFrame, BytesWritable, Text, Text> {
 
+		private Set<String> targetPersons = new HashSet<String>();
 		private FaceRecognitionEngine<KEDetectedFace, String> faceEngine;
 
 		@Override
 		protected void setup(Context context) throws IOException,
 				InterruptedException {
+			logger.info("setup method called...");
+
+			// initialize target persons
+			targetPersons.add("obama");
+
+			// Load face classifier
 			File file = new File("obama.train");
 			if (file.exists()) {
 				file.delete();
@@ -74,69 +81,72 @@ public class FaceRecognizer {
 		}
 
 		@Override
-		// public void map(VideoPathAndFrame key, BytesWritable value, Context
-		// context) throws IOException, InterruptedException {
-		public void map(VideoPathAndFrame key, BytesWritable value, Context context)
-				throws IOException, InterruptedException {
+		public void map(VideoPathAndFrame key, BytesWritable value,
+				Context context) throws IOException, InterruptedException {
 			logger.info("map method called...");
 
-			FImage fimg = ImageUtilities.readF(new ByteArrayInputStream(value
-					.getBytes()));
+			if (key.getFrame().get() >= 0) {
+				FImage fimg = ImageUtilities.readF(new ByteArrayInputStream(
+						value.getBytes()));
 
-			List<KEDetectedFace> faces = faceEngine.getDetector().detectFaces(
-					fimg);
+				List<KEDetectedFace> faces = faceEngine.getDetector()
+						.detectFaces(fimg);
 
-			// Go through detected faces
-			for (KEDetectedFace face : faces) {
+				// Go through detected faces
+				for (KEDetectedFace face : faces) {
 
-				// Find existing person for this face
-				String person = null;
-				float confidence = 0;
+					// Find existing person for this face
+					String person = null;
 
-				try {
-					List<IndependentPair<KEDetectedFace, ScoredAnnotation<String>>> rfaces = faceEngine
-							.recogniseBest(face.getFacePatch());
+					try {
+						List<IndependentPair<KEDetectedFace, ScoredAnnotation<String>>> rfaces = faceEngine
+								.recogniseBest(face.getFacePatch());
 
-					if (rfaces.size() > 0) {
-						ScoredAnnotation<String> score = rfaces.get(0)
-								.getSecondObject();
-						if (score != null) {
-							person = score.annotation;
-							confidence = score.confidence;
-						} else {
-							person = "n/a";
+						if (rfaces.size() > 0) {
+							// get the person with best confidence
+							ScoredAnnotation<String> score = rfaces.get(0)
+									.getSecondObject();
+							if (score != null) {
+								person = score.annotation;
+							}
 						}
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
 
-				// a person from the database has been detected
-				if (person != null) {
-					//context.write(key.getFilename(), new Text(person));
-					context.write(new Text(key.getFilename()+"-"+key.getFrame()), new Text(person));
+					// a person from the database has been detected
+					if (person != null && targetPersons.contains(person)) {
+						context.write(new Text(key.getFilename()), new Text(
+								person));
+					}
 				}
+			} else {
+				int numFrames = new BigInteger(value.getBytes()).intValue();
+				context.write(new Text(key.getFilename()), new Text("total="+numFrames));
 			}
 		}
 	}
 
 	public static class FaceRecognizerReducer extends
-			Reducer<Text, Text, Text, IntWritable> {
+			Reducer<Text, Text, Text, FloatWritable> {
 
 		public void reduce(Text key, Iterable<Text> values, Context context)
 				throws IOException, InterruptedException {
 			logger.info("reduce method called...");
 
-			int obamaCounter = 0;
+			int counter = 0;
+			int total = 1;
 
 			// count times a person is detected in a video
 			for (Text face : values) {
-				if (face.toString().equals("obama")) {
-					obamaCounter++;
+				if (face.toString().startsWith("total=")) {
+					total = Integer.parseInt(face.toString().split("=")[1]);
+				} else {
+					counter++;
 				}
 			}
 
-			context.write(key, new IntWritable(obamaCounter));
+			context.write(key, new FloatWritable(counter/(float)total));
 		}
 	}
 }

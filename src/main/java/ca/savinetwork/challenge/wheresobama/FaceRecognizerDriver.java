@@ -3,7 +3,6 @@ package ca.savinetwork.challenge.wheresobama;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.TextOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
@@ -13,6 +12,9 @@ import org.apache.hadoop.util.ToolRunner;
 
 import ca.savinetwork.challenge.wheresobama.FaceRecognizer.FaceRecognizerMapper;
 import ca.savinetwork.challenge.wheresobama.FaceRecognizer.FaceRecognizerReducer;
+import ca.savinetwork.challenge.wheresobama.sorting.secondary.VideoGroupComparator;
+import ca.savinetwork.challenge.wheresobama.sorting.secondary.VideoKeyComparator;
+import ca.savinetwork.challenge.wheresobama.sorting.secondary.VideoPathPartitioner;
 
 public class FaceRecognizerDriver extends Configured implements Tool {
 
@@ -23,7 +25,7 @@ public class FaceRecognizerDriver extends Configured implements Tool {
 		job.setJobName("FaceRecognizer");
 		
         job.setInputFormatClass(SequenceFileInputFormat.class);
-
+		
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
 		
