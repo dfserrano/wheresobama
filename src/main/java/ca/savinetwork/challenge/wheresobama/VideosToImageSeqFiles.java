@@ -43,7 +43,7 @@ public class VideosToImageSeqFiles {
 		protected void map(NullWritable key, BytesWritable value,
 				Context context) throws IOException, InterruptedException {
 			logger.info("map method called...");
-			
+
 			// store locally the video
 			String localFilePath = allocateTempFile();
 			Util.fromBytesToFile(value.getBytes(), localFilePath);
@@ -58,26 +58,31 @@ public class VideosToImageSeqFiles {
 				String imgFilePath = allocateTempFile();
 				File imgFile = new File(imgFilePath);
 				ImageUtilities.write(image, "JPG", imgFile);
-				
+
 				// get image into bytes
 				byte[] imgBytes = Util.fromFileToBytes(imgFilePath);
 
-				
 				context.write(new VideoPathAndFrame(filenameKey.toString(),
 						++frameNumber), new BytesWritable(imgBytes));
 
 				// delete local copy of the image
 				imgFile.delete();
 			}
-			
+
 			// emit a value to store number of frames of video
-			BigInteger bi = BigInteger.valueOf(frameNumber);
-			byte[] bytes = bi.toByteArray();
-			
-			context.write(new VideoPathAndFrame(filenameKey.toString(),
-			-1), new BytesWritable(bytes));
+
+			byte[] bi = intToByteArray(frameNumber);
+
+			context.write(new VideoPathAndFrame(filenameKey.toString(), -1),
+					new BytesWritable(bi));
 
 			videoFile.delete();
+		}
+
+		private byte[] intToByteArray(int value) {
+			return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16),
+					(byte) (value >>> 8), (byte) value };
+
 		}
 
 		private String allocateTempFile() {
@@ -92,6 +97,5 @@ public class VideosToImageSeqFiles {
 			return tempFilePath;
 		}
 
-		
 	}
 }

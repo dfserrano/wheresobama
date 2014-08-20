@@ -5,12 +5,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -21,7 +22,6 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.log4j.Logger;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.processing.face.detection.keypoints.KEDetectedFace;
@@ -33,7 +33,7 @@ import ca.savinetwork.challenge.wheresobama.io.VideoPathAndFrame;
 
 public class FaceRecognizer {
 
-	private static Logger logger = Logger.getLogger(FaceRecognizer.class);
+	private static final Log logger = LogFactory.getLog(FaceRecognizer.class);
 
 	public static class FaceRecognizerMapper extends
 			Mapper<VideoPathAndFrame, BytesWritable, Text, Text> {
@@ -121,9 +121,19 @@ public class FaceRecognizer {
 					}
 				}
 			} else {
-				int numFrames = new BigInteger(value.getBytes()).intValue();
-				context.write(new Text(key.getFilename()), new Text("total="+numFrames));
+				int numFrames = bytesToInt(value.getBytes());
+
+				context.write(new Text(key.getFilename()), new Text("total="
+						+ numFrames));
+
 			}
+		}
+
+		private int bytesToInt(byte[] bytes) {
+			int i = (bytes[0] << 24) & 0xff000000 | (bytes[1] << 16)
+					& 0x00ff0000 | (bytes[2] << 8) & 0x0000ff00
+					| (bytes[3] << 0) & 0x000000ff;
+			return i;
 		}
 	}
 
@@ -132,7 +142,7 @@ public class FaceRecognizer {
 
 		public void reduce(Text key, Iterable<Text> values, Context context)
 				throws IOException, InterruptedException {
-			logger.info("reduce method called...");
+			System.out.println("reduce method called...");
 
 			int counter = 0;
 			int total = 1;
@@ -146,7 +156,7 @@ public class FaceRecognizer {
 				}
 			}
 
-			context.write(key, new FloatWritable(counter/(float)total));
+			context.write(key, new FloatWritable(counter / (float) total));
 		}
 	}
 }
